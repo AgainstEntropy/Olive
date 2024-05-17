@@ -28,22 +28,6 @@
             }
         }
     },
-    "evaluators": {
-        "common_evaluator": {
-            "metrics": [
-                {
-                    "name": "latency",
-                    "type": "latency",
-                    "sub_types": [{"name": "avg"}],
-                    "user_config": {
-                        "user_script": "user_script.py",
-                        "dataloader_func": "text_encoder_data_loader",
-                        "batch_size": 1
-                    }
-                }
-            ]
-        }
-    },
     "passes": {
         "convert": {
             "type": "OnnxConversion",
@@ -110,8 +94,6 @@
     ],
     "engine": {
         "log_severity_level": 0,
-        "evaluator": "common_evaluator",
-        "evaluate_input_model": false,
         "host": "local_system",
         "target": "local_system",
         "cache_dir": "cache",
