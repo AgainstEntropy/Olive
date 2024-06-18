@@ -9,19 +9,17 @@ import logging
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Union
+from typing import Any, Dict, Union
 
 from olive.common.ort_inference import check_and_normalize_provider_args
 from olive.data.config import DataConfig
 from olive.evaluator.metric import LatencySubType, Metric, MetricType
-from olive.evaluator.metric_config import get_user_config_properties_from_metric_type
 from olive.evaluator.metric_result import joint_metric_key
 from olive.exception import EXCEPTIONS_TO_RAISE
 from olive.hardware.accelerator import AcceleratorLookup, AcceleratorSpec
 from olive.model import ONNXModelHandler
 from olive.passes import Pass
-from olive.passes.pass_config import ParamCategory, PassConfigParam
-from olive.resource_path import OLIVE_RESOURCE_ANNOTATIONS
+from olive.passes.pass_config import PassConfigParam
 
 logger = logging.getLogger(__name__)
 
@@ -208,33 +206,11 @@ class OrtPerfTuning(Pass):
         execution_provider = accelerator_spec.execution_provider
 
         return {
-            "data_dir": PassConfigParam(
-                type_=OLIVE_RESOURCE_ANNOTATIONS,
-                category=ParamCategory.DATA,
-                description="Directory of sample inference data.",
-            ),
-            "dataloader_func": PassConfigParam(
-                type_=Union[Callable, str],
-                category=ParamCategory.OBJECT,
-                description="Dataloader function to load data from given data_dir with given batch size.",
-            ),
-            "dataloader_func_kwargs": PassConfigParam(
-                type_=Dict[str, Any],
-                description="Keyword arguments for dataloader_func.",
-            ),
-            "batch_size": PassConfigParam(type_=int, description="Batch size for inference."),
+            "batch_size": PassConfigParam(type_=int, default=None, description="Batch size for inference."),
             "data_config": PassConfigParam(
                 type_=Union[DataConfig, Dict],
+                required=True,
                 description="Data config to load data for computing latency.",
-            ),
-            "input_names": PassConfigParam(
-                type_=list, default_value=None, description="Input names list for ONNX model."
-            ),
-            "input_shapes": PassConfigParam(
-                type_=list, default_value=None, description="Input shapes list for ONNX model."
-            ),
-            "input_types": PassConfigParam(
-                type_=list, default_value=None, description="Input types list for ONNX model."
             ),
             "device": PassConfigParam(
                 type_=str, default_value=device, description="Device selected for tuning process."
@@ -313,24 +289,20 @@ class PerfTuningRunner:
         self.data_root = data_root
 
     def tune_onnx_model(self, model):
-        latency_user_config = {}
         # which should be the same as the config in the metric
         config_dict = self.config.dict()
 
-        # data_dir/dataloader_func will be passed to the metric as perf_tuning will leverage
-        # the latency metric to run tune
-        for eval_config in get_user_config_properties_from_metric_type(MetricType.LATENCY):
-            if eval_config in config_dict:
-                latency_user_config[eval_config] = config_dict.get(eval_config)
-        if config_dict.get("dataloader_func_kwargs"):
-            latency_user_config["func_kwargs"] = {"dataloader_func": config_dict.get("dataloader_func_kwargs")}
+        latency_user_config = {}
+        if config_dict.get("batch_size"):
+            latency_user_config["batch_size"] = config_dict.get("batch_size")
+
         latency_sub_types = [{"name": LatencySubType.AVG}]
         latency_metric_config = {
             "name": "latency",
             "type": MetricType.LATENCY,
             "sub_types": latency_sub_types,
             "user_config": latency_user_config,
-            "data_config": config_dict.get("data_config"),
+            "data_config": config_dict["data_config"],
         }
         latency_metric = Metric(**latency_metric_config)
 
