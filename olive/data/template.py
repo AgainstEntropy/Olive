@@ -26,6 +26,35 @@ def dummy_data_config_template(input_shapes, input_names=None, input_types=None)
                 "input_types": input_types,
             }
         ),
+        dataloader_config=DataComponentConfig(
+            params={"batch_size": None}  # TODO(shaahji): Remove this override once DataConfig transition is complete
+        ),
+    )
+
+
+def random_data_config_template(input_shapes, input_names=None, input_types=None) -> DataConfig:
+    """Convert the random data config to the data container.
+
+    input_names: list
+        The input names of the model.
+    input_shapes: list
+        The input shapes of the model.
+    input_types: list
+        The input types of the model.
+    """
+    return DataConfig(
+        name="random_data_config_template",
+        type="RandomDataContainer",
+        load_dataset_config=DataComponentConfig(
+            params={
+                "input_shapes": input_shapes,
+                "input_names": input_names,
+                "input_types": input_types,
+            }
+        ),
+        dataloader_config=DataComponentConfig(
+            params={"batch_size": None}  # TODO(shaahji): Remove this override once DataConfig transition is complete
+        ),
     )
 
 
@@ -122,4 +151,5 @@ def raw_data_config_template(
                 "annotations_file": annotations_file,
             }
         ),
+        dataloader_config=DataComponentConfig(params={"batch_size": None}),
     )

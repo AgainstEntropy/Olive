@@ -9,9 +9,11 @@ from unittest.mock import MagicMock
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
+from olive.common.config_utils import validate_config
 from olive.constants import Framework
+from olive.data.component.dataset import RandomDataset
 from olive.data.config import DataComponentConfig, DataConfig
 from olive.data.registry import Registry
 from olive.evaluator.metric import AccuracySubType, LatencySubType, Metric, MetricType
@@ -31,29 +33,9 @@ class DummyModel(nn.Module):
         return torch.relu(self.fc1(x))
 
 
-class DummyDataset(Dataset):
-    def __init__(self, size):
-        self.size = size
-
-    def __getitem__(self, idx):
-        return torch.randn(1), torch.rand(10)
-
-    def __len__(self):
-        return self.size
-
-
-class FixedDummyDataset(Dataset):
-    def __init__(self, size):
-        self.size = size
-        self.rng = np.random.default_rng(0)
-        self.data = torch.tensor(self.rng.random((size, 1)))
-        self.labels = torch.tensor(self.rng.random(1))
-
-    def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
-
-    def __len__(self):
-        return self.size
+# TODO(shaahji): Remove this once perf_tuning pass supports DataConfig
+def create_random_dataloader(data_dir, batch_size=1, **kwargs):
+    return DataLoader(RandomDataset([1]), batch_size=batch_size)
 
 
 def pytorch_model_loader(model_path):
@@ -162,23 +144,37 @@ def get_mock_openvino_model():
     return olive_model
 
 
-def create_dataloader(data_dir, batch_size, *args, **kwargs):
-    return DataLoader(DummyDataset(1))
+def _get_random_data_config(
+    name, input_shapes, input_names=None, input_types=None, size=1, batch_size=1, deterministic=True
+):
+    data_config = DataConfig(
+        name=name,
+        type="RandomDataContainer",
+        load_dataset_config=DataComponentConfig(
+            params={
+                "input_shapes": input_shapes,
+                "input_names": input_names,
+                "input_types": input_types,
+                "size": size,
+            }
+        ),
+        dataloader_config=DataComponentConfig(params={"batch_size": batch_size}),
+        post_process_data_config=DataComponentConfig(type="text_classification_post_process"),
+    )
+    if deterministic:
+        data_config.load_dataset_params["seed"] = 0
 
-
-def create_fixed_dataloader(data_dir, batch_size, *args, **kwargs):
-    return DataLoader(FixedDummyDataset(1))
+    return validate_config(data_config, DataConfig)
 
 
 def get_accuracy_metric(
     *acc_subtype,
-    random_dataloader=True,
+    deterministic=True,
     user_config=None,
     backend="torch_metrics",
     goal_type="threshold",
     goal_value=0.99,
 ):
-    accuracy_metric_config = {"dataloader_func": create_dataloader if random_dataloader else create_fixed_dataloader}
     accuracy_score_metric_config = {"task": "multiclass", "num_classes": 10}
     sub_types = [
         {
@@ -193,8 +189,9 @@ def get_accuracy_metric(
         name="accuracy",
         type=MetricType.ACCURACY,
         sub_types=sub_types,
-        user_config=user_config or accuracy_metric_config,
+        user_config=user_config,
         backend=backend,
+        data_config=_get_random_data_config("accuracy_metric_data_config", [[1]]),
     )
 
 
@@ -233,24 +230,24 @@ def get_custom_metric_no_eval():
 
 
 def get_latency_metric(*lat_subtype, user_config=None):
-    latency_metric_config = {"dataloader_func": create_dataloader}
     sub_types = [{"name": sub} for sub in lat_subtype]
     return Metric(
         name="latency",
         type=MetricType.LATENCY,
         sub_types=sub_types,
-        user_config=user_config or latency_metric_config,
+        user_config=user_config,
+        data_config=_get_random_data_config("latency_metric_data_config", [[1]]),
     )
 
 
 def get_throughput_metric(*lat_subtype, user_config=None):
-    metric_config = {"dataloader_func": create_dataloader}
     sub_types = [{"name": sub} for sub in lat_subtype]
     return Metric(
         name="throughput",
         type=MetricType.THROUGHPUT,
         sub_types=sub_types,
-        user_config=user_config or metric_config,
+        user_config=user_config,
+        data_config=_get_random_data_config("throughput_metric_data_config", [[1]]),
     )
 
 

@@ -11,13 +11,13 @@ from olive.data.registry import Registry
 
 
 @Registry.register(DataContainerType.DATA_CONTAINER)
-class DummyDataContainer(DataContainer):
-    """Dummy data container.
+class RandomDataContainer(DataContainer):
+    """Random data container.
 
-    The way to create a dummy data container:
-        dummy_data_config = DataConfig(
-            name="dummy",
-            type="DummyDataContainer",
+    The way to create a random data container:
+        random_data_config = DataConfig(
+            name="random",
+            type="RandomDataContainer",
             load_dataset_config=DataComponentConfig(
                 params={
                     "input_names": metric.user_config.input_names,
@@ -33,6 +33,6 @@ class DummyDataContainer(DataContainer):
     """
 
     default_components_type: ClassVar[dict] = {
-        DataComponentType.LOAD_DATASET.value: "dummy_dataset",
+        DataComponentType.LOAD_DATASET.value: "random_dataset",
         DataComponentType.DATALOADER.value: "default_dataloader",
     }

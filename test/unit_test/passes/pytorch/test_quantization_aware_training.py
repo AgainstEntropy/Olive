@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 # --------------------------------------------------------------------------
-from test.unit_test.utils import create_dataloader, get_pytorch_model
+from test.unit_test.utils import create_random_dataloader, get_pytorch_model
 
 from olive.hardware.accelerator import AcceleratorSpec
 from olive.passes.olive_pass import FullPassConfig, create_pass_from_dict
@@ -13,7 +13,7 @@ def test_quantization_aware_training_pass_default(tmp_path):
     # setup
     input_model = get_pytorch_model()
     config = {
-        "train_dataloader_func": create_dataloader,
+        "train_dataloader_func": create_random_dataloader,
         "checkpoint_path": str(tmp_path / "checkpoint"),
     }
 
