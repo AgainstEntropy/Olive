@@ -94,19 +94,33 @@ class BaseDataset(TorchDataset):
 
 
 class DummyDataset(BaseDataset):
-    def __init__(self, input_shapes, input_names: Optional[List] = None, input_types: Optional[List] = None):
-        """Initialize the dummy dataset.
+    def __init__(
+        self,
+        input_shapes,
+        input_names: Optional[List] = None,
+        input_types: Optional[List] = None,
+        size: Optional[int] = 256,
+        seed: Optional[int] = None,
+    ):
+        """Initialize the dataset with random data.
 
-        if input_names is None, the dummy dataset will return a tuple of tensors
-        else the dummy dataset will return a dict of tensors
+        if input_names is None, the dataset will return a tuple of tensors
+        else the dataset will return a dict of tensors
         """
         # pylint: disable=super-init-not-called
         self.input_shapes = input_shapes
         self.input_names = input_names
         self.input_types = input_types or ["float32"] * len(input_shapes)
+        self.seed = seed
+        self.dummy_data = [None] * size
+
+        # NOTE: torch.Generator isn't pickable and so we can't use it as a class member
+        # Save/Restore the generator state for each item as a workaround.
+        # https://github.com/pytorch/pytorch/issues/43672
+        self.generator_state = None if seed is None else torch.Generator().manual_seed(seed).get_state()
 
     def __len__(self):
-        return 256
+        return len(self.dummy_data)
 
     def __getitem__(self, index):
         # From https://docs.python.org/3/reference/datamodel.html#object.__getitem__,
@@ -115,20 +129,32 @@ class DummyDataset(BaseDataset):
         if index < 0 or index >= len(self):
             raise IndexError("Index out of range")
 
-        input_types = [resolve_torch_dtype(dtype_str) for dtype_str in self.input_types]
+        if self.dummy_data[index]:
+            return self.dummy_data[index]
 
-        if not self.input_names:
-            dummy_inputs = []
-            for shape, dtype in zip(self.input_shapes, input_types):
-                dummy_inputs.append(torch.ones(shape, dtype=dtype))
-            dummy_inputs = tuple(dummy_inputs) if len(dummy_inputs) > 1 else dummy_inputs[0]
-        else:
+        input_types = [resolve_torch_dtype(dtype_str) for dtype_str in self.input_types]
+        generator = torch.Generator().set_state(self.generator_state) if self.generator_state is not None else None
+
+        # NOTE: torch.rand doesn't support all types, especially not int64 and bool
+        # So, always generate the data with dtype=float32 and convert it to expected input_type.
+        if self.input_names:
             dummy_inputs = {}
             for input_name, input_shape, input_type in zip(self.input_names, self.input_shapes, input_types):
-                dummy_inputs.update({input_name: torch.ones(input_shape, dtype=input_type)})
+                data = torch.rand(input_shape, generator=generator, dtype=torch.float32)
+                dummy_inputs.update({input_name: data.to(dtype=input_type)})
             dummy_inputs = dummy_inputs if len(dummy_inputs) > 1 else dummy_inputs[self.input_names[0]]
-        label = 0
-        return dummy_inputs, label
+        else:
+            dummy_inputs = []
+            for shape, dtype in zip(self.input_shapes, input_types):
+                data = torch.rand(shape, generator=generator, dtype=torch.float32)
+                dummy_inputs.append(data.to(dtype=dtype))
+            dummy_inputs = tuple(dummy_inputs) if len(dummy_inputs) > 1 else dummy_inputs[0]
+
+        if generator:
+            self.generator_state = generator.get_state()
+
+        self.dummy_data[index] = (dummy_inputs, torch.tensor(0))
+        return self.dummy_data[index]
 
 
 class RawDataset(BaseDataset):

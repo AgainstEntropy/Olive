@@ -2,18 +2,26 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 # --------------------------------------------------------------------------
-from test.unit_test.utils import create_dataloader, get_pytorch_model
+from test.unit_test.utils import get_pytorch_model
 
+from torch.utils.data import DataLoader
+
+from olive.data.component.dataset import DummyDataset
 from olive.hardware.accelerator import AcceleratorSpec
 from olive.passes.olive_pass import FullPassConfig, create_pass_from_dict
 from olive.passes.pytorch.quantization_aware_training import QuantizationAwareTraining
+
+
+# TODO(shaahji): Remove this once QuantizationAwareTraining pass supports DataConfig
+def _create_dummy_dataloader(data_dir, batch_size=1, size=1, **kwargs):
+    return DataLoader(DummyDataset([1], size=size), batch_size=batch_size)
 
 
 def test_quantization_aware_training_pass_default(tmp_path):
     # setup
     input_model = get_pytorch_model()
     config = {
-        "train_dataloader_func": create_dataloader,
+        "train_dataloader_func": _create_dummy_dataloader,
         "checkpoint_path": str(tmp_path / "checkpoint"),
     }
 
