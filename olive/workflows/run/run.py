@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Generator, List, Union
 
 from olive.auto_optimizer import AutoOptimizer
 from olive.common.utils import get_path_by_os
-from olive.logging import set_default_logger_severity, set_ort_logger_severity, set_verbosity_info
+from olive.logging import WORKFLOW_COMPLETED_LOG, set_default_logger_severity, set_ort_logger_severity, set_verbosity_info
 from olive.package_config import OlivePackageConfig
 from olive.systems.accelerator_creator import create_accelerators
 from olive.systems.common import SystemType
@@ -275,12 +275,14 @@ def run_engine(package_config: OlivePackageConfig, run_config: RunConfig, data_r
                 run_config.engine.log_severity_level,
             )
         )
+    logger.info(WORKFLOW_COMPLETED_LOG)
     return run_rls
 
 
 def run(
     run_config: Union[str, Path, dict],
     setup: bool = False,
+    retrieve: bool = False,
     data_root: str = None,
     package_config: Union[str, Path, dict] = None,
 ):
@@ -290,6 +292,8 @@ def run(
     package_config = OlivePackageConfig.parse_file_or_obj(package_config)
     run_config = RunConfig.parse_file_or_obj(run_config)
     if run_config.engine.host.type == SystemType.Cloud:
+        if retrieve:
+            return retrieve_workflow_logs(run_config)
         return run_cloud_system(run_config)
 
     # set log level for olive
@@ -303,6 +307,13 @@ def run(
     else:
         return run_engine(package_config, run_config, data_root)
 
+def retrieve_workflow_logs(run_config: RunConfig):
+    workflow_id = run_config.workflow_id
+    cloud_system: CloudSystem = run_config.engine.host.create_system()
+    olive_path = cloud_system.olive_path
+    cache_dir = run_config.engine.cache_dir
+    cache_dir = get_path_by_os(Path(olive_path) / cache_dir, cloud_system.os)
+    return cloud_system.retrieve_workflow_logs(cache_dir, workflow_id)
 
 def run_cloud_system(run_config: RunConfig):
     workflow_id = run_config.workflow_id

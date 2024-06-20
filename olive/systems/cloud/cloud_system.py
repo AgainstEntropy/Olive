@@ -13,6 +13,7 @@ import paramiko
 from olive.common.constants import DEFAULT_WORKFLOW_ID, OS
 from olive.common.utils import get_path_by_os
 from olive.exception import OliveSystemError
+from olive.logging import WORKFLOW_COMPLETED_LOG
 from olive.systems.common import AcceleratorConfig, SystemType
 from olive.systems.olive_system import OliveSystem
 
@@ -84,6 +85,24 @@ class CloudSystem(OliveSystem):
             sftp = self.ssh_client.open_sftp()
             sftp.put(str(olive_config_path), target_path)
             logger.debug("Uploaded config file to %s", target_path)
+            
+    def retrieve_workflow_logs(self, cache_dir: str, workflow_id: str):
+        log_path = get_path_by_os(Path(cache_dir) / f"{workflow_id}.log", self.os)
+        sftp = self.ssh_client.open_sftp()
+        try:
+            with sftp.file(log_path, "r") as log_file:
+                for line in log_file:
+                    line = line.decode().strip()
+                    logger.info(line)
+                    if WORKFLOW_COMPLETED_LOG in line:
+                        self._download_workflow_output(cache_dir, workflow_id)
+                    else:
+                        logger.info("Workflow is still running. Please wait for completion.")
+        finally:
+            sftp.close()
+            
+    def _download_workflow_output(self, cache_dir: str, workflow_id: str):
+        pass
 
     def _run_command(self, command: str):
         logger.info("Running command %s", command)
