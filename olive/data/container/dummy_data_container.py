@@ -24,10 +24,6 @@ class DummyDataContainer(DataContainer):
                     "input_shapes": metric.user_config.input_shapes,
                     "input_types": metric.user_config.input_types,
                 }
-            ),
-            dataloader_config=DataComponentConfig(
-                # TODO(shaahji): Remove this override once DataConfig transition is complete
-                params={ "batch_size": None }
             )
         )
     """

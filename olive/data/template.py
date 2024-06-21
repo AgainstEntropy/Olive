@@ -26,9 +26,6 @@ def dummy_data_config_template(input_shapes, input_names=None, input_types=None)
                 "input_types": input_types,
             }
         ),
-        dataloader_config=DataComponentConfig(
-            params={"batch_size": None}  # TODO(shaahji): Remove this override once DataConfig transition is complete
-        ),
     )
 
 
