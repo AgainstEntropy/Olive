@@ -100,54 +100,9 @@ class DummyDataset(BaseDataset):
         input_names: Optional[List] = None,
         input_types: Optional[List] = None,
         size: Optional[int] = 256,
-    ):
-        """Initialize the dummy dataset.
-
-        if input_names is None, the dummy dataset will return a tuple of tensors
-        else the dummy dataset will return a dict of tensors
-        """
-        # pylint: disable=super-init-not-called
-        self.input_shapes = input_shapes
-        self.input_names = input_names
-        self.input_types = input_types or ["float32"] * len(input_shapes)
-        self.size = size
-
-        input_types = [resolve_torch_dtype(dtype_str) for dtype_str in self.input_types]
-
-        if self.input_names:
-            self.dummy_data = {}
-            for input_name, input_shape, input_type in zip(self.input_names, self.input_shapes, input_types):
-                self.dummy_data.update({input_name: torch.ones(input_shape, dtype=input_type)})
-            self.dummy_data = self.dummy_data if len(self.dummy_data) > 1 else self.dummy_data[self.input_names[0]]
-        else:
-            self.dummy_data = []
-            for shape, dtype in zip(self.input_shapes, input_types):
-                self.dummy_data.append(torch.ones(shape, dtype=dtype))
-            self.dummy_data = tuple(self.dummy_data) if len(self.dummy_data) > 1 else self.dummy_data[0]
-
-    def __len__(self):
-        return self.size
-
-    def __getitem__(self, index):
-        # From https://docs.python.org/3/reference/datamodel.html#object.__getitem__,
-        # __getitem__ should raise IndexError when index is out of range
-        # Otherwise, the enumerate function will enter infinite loop
-        if index < 0 or index >= len(self):
-            raise IndexError("Index out of range")
-
-        return self.dummy_data, torch.tensor(0)
-
-
-class RandomDataset(BaseDataset):
-    def __init__(
-        self,
-        input_shapes,
-        input_names: Optional[List] = None,
-        input_types: Optional[List] = None,
-        size: Optional[int] = 256,
         seed: Optional[int] = None,
     ):
-        """Initialize the random dataset.
+        """Initialize the dataset with random data.
 
         if input_names is None, the dataset will return a tuple of tensors
         else the dataset will return a dict of tensors
@@ -180,15 +135,19 @@ class RandomDataset(BaseDataset):
         input_types = [resolve_torch_dtype(dtype_str) for dtype_str in self.input_types]
         generator = torch.Generator().set_state(self.generator_state) if self.generator_state is not None else None
 
+        # NOTE: torch.rand doesn't support all types, especially not int64 and bool
+        # So, always generate the data with dtype=float32 and convert it to expected input_type.
         if self.input_names:
             dummy_inputs = {}
             for input_name, input_shape, input_type in zip(self.input_names, self.input_shapes, input_types):
-                dummy_inputs.update({input_name: torch.rand(input_shape, generator=generator, dtype=input_type)})
+                data = torch.rand(input_shape, generator=generator, dtype=torch.float32)
+                dummy_inputs.update({input_name: data.to(dtype=input_type)})
             dummy_inputs = dummy_inputs if len(dummy_inputs) > 1 else dummy_inputs[self.input_names[0]]
         else:
             dummy_inputs = []
             for shape, dtype in zip(self.input_shapes, input_types):
-                dummy_inputs.append(torch.rand(shape, generator=generator, dtype=dtype))
+                data = torch.rand(shape, generator=generator, dtype=torch.float32)
+                dummy_inputs.append(data.to(dtype=dtype))
             dummy_inputs = tuple(dummy_inputs) if len(dummy_inputs) > 1 else dummy_inputs[0]
 
         if generator:

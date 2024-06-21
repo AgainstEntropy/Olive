@@ -1,5 +1,5 @@
 from test.unit_test.utils import (
-    create_random_dataloader,
+    create_dummy_dataloader,
     get_pytorch_model,
     get_pytorch_model_config,
     pytorch_model_loader,
@@ -29,7 +29,7 @@ EVALUATORS_CONFIG = {
                     "name": "avg",
                 },
             ],
-            "user_config": {"dataloader_func": create_random_dataloader},
+            "user_config": {"dataloader_func": create_dummy_dataloader},
         }
     ]
 }

@@ -12,7 +12,7 @@ import psutil
 import pytest
 from torch.utils.data import DataLoader
 
-from olive.data.component.dataset import RandomDataset
+from olive.data.component.dataset import DummyDataset
 from olive.evaluator.metric_result import flatten_metric_result
 from olive.evaluator.olive_evaluator import OliveEvaluator, OnnxEvaluator
 from olive.hardware.accelerator import DEFAULT_CPU_ACCELERATOR, DEFAULT_GPU_CUDA_ACCELERATOR, AcceleratorSpec, Device
@@ -21,8 +21,8 @@ from olive.passes.onnx.perf_tuning import PERFTUNING_BASELINE, OrtPerfTuning, Pe
 
 
 # TODO(shaahji): Remove this once perf_tuning pass supports DataConfig
-def _create_random_dataloader(data_dir, batch_size=1, **kwargs):
-    return DataLoader(RandomDataset([[1, 1]]), batch_size=batch_size)
+def _create_dummy_dataloader(data_dir, batch_size=1, **kwargs):
+    return DataLoader(DummyDataset([[1, 1]]), batch_size=batch_size)
 
 
 @pytest.mark.parametrize(
@@ -30,8 +30,8 @@ def _create_random_dataloader(data_dir, batch_size=1, **kwargs):
     [
         {"input_names": ["input"], "input_shapes": [[1, 1]]},
         {},
-        {"dataloader_func": _create_random_dataloader},
-        {"dataloader_func": _create_random_dataloader, "dataloader_func_kwargs": {"dummy_kwarg": 1}},
+        {"dataloader_func": _create_dummy_dataloader},
+        {"dataloader_func": _create_dummy_dataloader, "dataloader_func_kwargs": {"dummy_kwarg": 1}},
     ],
 )
 def test_ort_perf_tuning_pass(config, tmp_path):
@@ -234,7 +234,7 @@ def test_ort_perf_tuning_pass_with_dynamic_shapes(mock_get_io_config, tmp_path):
     with pytest.raises(TypeError) as e:
         # execute
         p.run(input_model, None, output_folder)
-    assert "ones() received an invalid combination of arguments" in str(e.value)
+    assert "rand() received an invalid combination of arguments" in str(e.value)
 
 
 @patch.object(PerfTuningRunner, "threads_num_binary_search")

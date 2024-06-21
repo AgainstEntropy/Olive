@@ -3,23 +3,18 @@
 # Licensed under the MIT License.
 # --------------------------------------------------------------------------
 from pathlib import Path
-from test.unit_test.utils import create_random_dataloader, get_pytorch_model_dummy_input, pytorch_model_loader
+from test.unit_test.utils import create_dummy_dataloader, get_pytorch_model_dummy_input, pytorch_model_loader
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from olive.data.component.dataset import RandomDataset
+from olive.data.component.load_dataset import dummy_dataset
 from olive.data.config import DataComponentConfig, DataConfig
 from olive.data.registry import Registry
 from olive.resource_path import create_resource_path
 from olive.workflows import run as olive_run
 
 # pylint: disable=redefined-outer-name
-
-
-@Registry.register_dataset()
-def dummy_dataset_with_data_dir(data_dir, size=1, **kwargs):
-    return RandomDataset([1], size=size, **kwargs)
 
 
 @Registry.register_post_process()
@@ -41,7 +36,10 @@ def get_dataloader_config():
             {
                 "name": "test_data_config",
                 "type": "DummyDataContainer",
-                "load_dataset_config": {"type": "dummy_dataset_with_data_dir", "params": {"data_dir": "data"}},
+                "load_dataset_config": {
+                    "type": "dummy_dataset",
+                    "params": {"data_dir": "data", "input_shapes": [1], "size": 1},
+                },
                 "dataloader_config": {"params": {"batch_size": 16}},
             }
         ],
@@ -71,7 +69,7 @@ def get_dataloader_config():
             "perf_tuning": {
                 "type": "OrtPerfTuning",
                 "config": {
-                    "dataloader_func": create_random_dataloader,
+                    "dataloader_func": create_dummy_dataloader,
                     "batch_size": 16,
                     "data_dir": "data",
                 },
@@ -101,7 +99,10 @@ def get_data_config():
             {
                 "name": "test_data_config",
                 "type": "DummyDataContainer",
-                "load_dataset_config": {"type": "dummy_dataset_with_data_dir", "params": {"data_dir": "data"}},
+                "load_dataset_config": {
+                    "type": "dummy_dataset",
+                    "params": {"data_dir": "data", "input_shapes": [1], "size": 1},
+                },
                 "post_process_data_config": {"type": "post_processing_func"},
                 "dataloader_config": {"params": {"batch_size": 16}},
             }
@@ -135,8 +136,8 @@ def get_data_config():
                     "data_config": DataConfig(
                         name="test_data_config_inlined",
                         load_dataset_config=DataComponentConfig(
-                            type="dummy_dataset_with_data_dir",
-                            params={"data_dir": "perfdata"},
+                            type="dummy_dataset",
+                            params={"data_dir": "perfdata", "input_shapes": [1], "size": 1},
                         ),
                         post_process_data_config=DataComponentConfig(type="post_processing_func"),
                         dataloader_config=DataComponentConfig(params={"batch_size": 16}),
@@ -217,12 +218,19 @@ def test_data_root_for_dataset(mock_get_local_path, data_config):
     config_obj = data_config
     data_root = config_obj.get("data_root")
 
-    mock = MagicMock(side_effect=dummy_dataset_with_data_dir)
-    Registry.register_dataset("dummy_dataset_with_data_dir")(mock)
+    mock = MagicMock(side_effect=dummy_dataset)
+    Registry.register_dataset("dummy_dataset")(mock)
     best = olive_run(config_obj)
-    mock.assert_called_with(data_dir=concat_data_dir(data_root, "data"))
+    mock.assert_called_with(data_dir=concat_data_dir(data_root, "data"), input_shapes=[1], size=1)
     if data_root is None:
-        mock.assert_any_call(data_dir=concat_data_dir(data_root, "perfdata"), size=1)
+        mock.assert_any_call(
+            data_dir=concat_data_dir(data_root, "perfdata"),
+            input_shapes=[1],
+            input_names=None,
+            input_types=None,
+            size=1,
+            seed=None,
+        )
     else:
-        mock.assert_any_call(data_dir=concat_data_dir(data_root, "perfdata"))
+        mock.assert_any_call(data_dir=concat_data_dir(data_root, "perfdata"), input_shapes=[1], size=1)
     assert best is not None

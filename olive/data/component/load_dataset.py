@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 # --------------------------------------------------------------------------
-from olive.data.component.dataset import DummyDataset, RandomDataset, RawDataset
+from olive.data.component.dataset import DummyDataset, RawDataset
 from olive.data.registry import Registry
 
 
@@ -35,13 +35,8 @@ def huggingface_dataset(data_dir, data_name=None, subset=None, split="validation
 
 
 @Registry.register_dataset()
-def dummy_dataset(data_dir, input_shapes, input_names=None, input_types=None, size=256):
-    return DummyDataset(input_shapes, input_names, input_types, size=size)
-
-
-@Registry.register_dataset()
-def random_dataset(data_dir, input_shapes, input_names=None, input_types=None, size=256, seed=None):
-    return RandomDataset(input_shapes, input_names, input_types, size, seed)
+def dummy_dataset(data_dir, input_shapes, input_names=None, input_types=None, size=256, seed=None):
+    return DummyDataset(input_shapes, input_names, input_types, size, seed)
 
 
 @Registry.register_dataset()

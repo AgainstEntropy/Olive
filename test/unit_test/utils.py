@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from olive.common.config_utils import validate_config
 from olive.constants import Framework
-from olive.data.component.dataset import RandomDataset
+from olive.data.component.dataset import DummyDataset
 from olive.data.config import DataComponentConfig, DataConfig
 from olive.data.registry import Registry
 from olive.evaluator.metric import AccuracySubType, LatencySubType, Metric, MetricType
@@ -34,8 +34,8 @@ class DummyModel(nn.Module):
 
 
 # TODO(shaahji): Remove this once perf_tuning pass supports DataConfig
-def create_random_dataloader(data_dir, batch_size=1, **kwargs):
-    return DataLoader(RandomDataset([1]), batch_size=batch_size)
+def create_dummy_dataloader(data_dir, batch_size=1, **kwargs):
+    return DataLoader(DummyDataset([1]), batch_size=batch_size)
 
 
 def pytorch_model_loader(model_path):
@@ -144,12 +144,12 @@ def get_mock_openvino_model():
     return olive_model
 
 
-def _get_random_data_config(
+def _get_dummy_data_config(
     name, input_shapes, input_names=None, input_types=None, size=1, batch_size=1, deterministic=True
 ):
     data_config = DataConfig(
         name=name,
-        type="RandomDataContainer",
+        type="DummyDataContainer",
         load_dataset_config=DataComponentConfig(
             params={
                 "input_shapes": input_shapes,
@@ -191,7 +191,7 @@ def get_accuracy_metric(
         sub_types=sub_types,
         user_config=user_config,
         backend=backend,
-        data_config=_get_random_data_config("accuracy_metric_data_config", [[1]]),
+        data_config=_get_dummy_data_config("accuracy_metric_data_config", [[1]]),
     )
 
 
@@ -236,7 +236,7 @@ def get_latency_metric(*lat_subtype, user_config=None):
         type=MetricType.LATENCY,
         sub_types=sub_types,
         user_config=user_config,
-        data_config=_get_random_data_config("latency_metric_data_config", [[1]]),
+        data_config=_get_dummy_data_config("latency_metric_data_config", [[1]]),
     )
 
 
@@ -247,7 +247,7 @@ def get_throughput_metric(*lat_subtype, user_config=None):
         type=MetricType.THROUGHPUT,
         sub_types=sub_types,
         user_config=user_config,
-        data_config=_get_random_data_config("throughput_metric_data_config", [[1]]),
+        data_config=_get_dummy_data_config("throughput_metric_data_config", [[1]]),
     )
 
 
